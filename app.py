@@ -130,6 +130,8 @@ def fig_json(fig):
         font=dict(family="Inter, sans-serif", color="#e2e8f0"),
         margin=dict(l=40, r=20, t=44, b=36)
     )
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, zeroline=False)
     return json.loads(fig.to_json())
 
 def chart_trend():
@@ -173,20 +175,46 @@ def chart_region():
            .reset_index()
            .rename(columns={"sum": "defaults", "count": "total"}))
     g["rate"] = (g["defaults"] / g["total"] * 100).round(2)
-    fig = go.Figure([
-        go.Bar(name="Total Customers", x=g["region"], y=g["total"],
-               marker_color="#6366f1"),
-        go.Scatter(name="Default Rate (%)", x=g["region"], y=g["rate"],
-                   mode="lines+markers",
-                   marker=dict(size=9, color="#f59e0b"),
-                   line=dict(width=2.5, color="#f59e0b"),
-                   yaxis="y2")
-    ])
+
+    # Canadian province/region centroids
+    coords = {
+        "Ontario" : (51.25, -85.32),
+        "BC"      : (53.73, -127.65),
+        "Quebec"  : (52.94, -73.55),
+        "Alberta" : (53.93, -116.58),
+        "Other"   : (63.00, -96.00)
+    }
+    g["lat"] = g["region"].map(lambda x: coords.get(x, (60, -96))[0])
+    g["lon"] = g["region"].map(lambda x: coords.get(x, (60, -96))[1])
+
+    fig = px.scatter_geo(
+        g, lat="lat", lon="lon",
+        size="total", color="rate",
+        hover_name="region",
+        hover_data={"total": True, "rate": True, "lat": False, "lon": False},
+        color_continuous_scale="RdYlGn_r",
+        size_max=55,
+        title="Customer Distribution & Default Rate by Province",
+        labels={"rate": "Default Rate (%)", "total": "Customers"}
+    )
+    fig.update_geos(
+        scope="north america",
+        showland=True,     landcolor="#1e293b",
+        showocean=True,    oceancolor="#0f172a",
+        showlakes=True,    lakecolor="#162032",
+        showcountries=True, countrycolor="#475569",
+        showsubunits=True,  subunitcolor="#334155",
+        bgcolor="rgba(0,0,0,0)",
+        center=dict(lat=56, lon=-96),
+        projection_scale=2.8
+    )
     fig.update_layout(
-        title="Customers & Default Rate by Region",
-        yaxis=dict(title="# Customers"),
-        yaxis2=dict(title="Default Rate (%)", overlaying="y", side="right"),
-        legend=dict(orientation="h", y=1.14)
+        margin=dict(l=0, r=0, t=44, b=0),
+        coloraxis_colorbar=dict(
+            title="Default Rate (%)",
+            tickfont=dict(color="#e2e8f0"),
+            titlefont=dict(color="#e2e8f0")
+        )
     )
     return fig_json(fig)
 
